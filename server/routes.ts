@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertMetricQuerySchema, insertDatasourceSchema } from "@shared/schema";
+import { insertMetricQuerySchema, insertDatasourceSchema, METRICS_CATALOG } from "@shared/schema";
 import {
   appLog, getConfig, updateConfig, getLogs, getRequestLogs,
   getLogFiles, getLogFileContent, clearLogs, getCurrentLogFile,
@@ -135,6 +135,85 @@ export async function registerRoutes(
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: "Failed to delete datasource" });
+    }
+  });
+
+  app.post("/api/datasources/:id/test", async (req, res) => {
+    try {
+      const ds = await storage.getDatasource(req.params.id);
+      if (!ds) {
+        return res.status(404).json({ error: "Datasource not found" });
+      }
+      appLog("INFO", "datasource", `Testing connectivity to datasource "${ds.name}" at ${ds.url}`);
+      const startTime = Date.now();
+      const timeoutMs = ds.queryTimeout ? parseInt(ds.queryTimeout) * 1000 || 5000 : 5000;
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), Math.min(timeoutMs, 10000));
+        const headers: Record<string, string> = { "Accept": "application/json" };
+        if (ds.basicAuth && ds.basicAuthUser) {
+          headers["Authorization"] = `Basic ${Buffer.from(`${ds.basicAuthUser}:`).toString("base64")}`;
+        }
+        if (ds.customHeaders && typeof ds.customHeaders === "object") {
+          Object.entries(ds.customHeaders).forEach(([k, v]) => { headers[k] = v; });
+        }
+        const response = await fetch(`${ds.url}/api/v1/status/buildinfo`, {
+          method: "GET",
+          signal: controller.signal,
+          headers,
+        });
+        clearTimeout(timeout);
+        const latency = Date.now() - startTime;
+        if (response.ok) {
+          const data = await response.json().catch(() => null);
+          appLog("INFO", "datasource", `Connectivity test PASSED for "${ds.name}" (${latency}ms)`);
+          res.json({
+            success: true,
+            message: `Successfully connected to ${ds.name}`,
+            latencyMs: latency,
+            statusCode: response.status,
+            version: data?.data?.version || data?.version || null,
+          });
+        } else {
+          appLog("WARN", "datasource", `Connectivity test returned status ${response.status} for "${ds.name}"`);
+          res.json({
+            success: false,
+            message: `Connection returned HTTP ${response.status}: ${response.statusText}`,
+            latencyMs: latency,
+            statusCode: response.status,
+          });
+        }
+      } catch (fetchError: any) {
+        const latency = Date.now() - startTime;
+        const errorMsg = fetchError.name === "AbortError"
+          ? "Connection timed out after 5 seconds"
+          : fetchError.code === "ECONNREFUSED"
+            ? `Connection refused at ${ds.url}`
+            : fetchError.code === "ENOTFOUND"
+              ? `DNS lookup failed for ${ds.url}`
+              : fetchError.message || "Unknown connection error";
+        appLog("WARN", "datasource", `Connectivity test FAILED for "${ds.name}": ${errorMsg}`);
+        res.json({
+          success: false,
+          message: errorMsg,
+          latencyMs: latency,
+        });
+      }
+    } catch (error) {
+      res.status(500).json({ error: "Failed to test datasource connectivity" });
+    }
+  });
+
+  app.get("/api/metrics/catalog", async (_req, res) => {
+    try {
+      const allDs = await storage.getDatasources();
+      const defaultDs = allDs.find((d) => d.isDefault) || (allDs.length > 0 ? allDs[0] : null);
+      res.json({
+        datasource: defaultDs ? { id: defaultDs.id, name: defaultDs.name, type: defaultDs.type, url: defaultDs.url } : null,
+        metrics: METRICS_CATALOG,
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch metrics catalog" });
     }
   });
 

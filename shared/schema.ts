@@ -142,6 +142,43 @@ export const COMMON_METRICS = [
   { name: "error_rate_total", type: "counter", description: "Total error count" },
 ] as const;
 
+export interface MetricMetadata {
+  name: string;
+  type: MetricType;
+  description: string;
+  unit: string;
+  labels: string[];
+  suggestedOperations: string[];
+  job: string;
+  scrapeInterval: string;
+  sampleValue: number;
+}
+
+export const METRICS_CATALOG: MetricMetadata[] = [
+  { name: "http_requests_total", type: "counter", description: "Total number of HTTP requests received, partitioned by status code, method, and handler", unit: "requests", labels: ["job", "instance", "method", "status_code", "handler", "endpoint", "env"], suggestedOperations: ["rate", "increase", "sum", "topk"], job: "api-server", scrapeInterval: "15s", sampleValue: 48291 },
+  { name: "http_request_duration_seconds", type: "histogram", description: "HTTP request latency in seconds, bucketed by predefined latency boundaries", unit: "seconds", labels: ["job", "instance", "method", "handler", "le", "status_code"], suggestedOperations: ["histogram_quantile", "rate", "avg", "sum"], job: "api-server", scrapeInterval: "15s", sampleValue: 0.245 },
+  { name: "node_cpu_seconds_total", type: "counter", description: "Seconds the CPUs spent in each mode (user, system, idle, iowait, etc.)", unit: "seconds", labels: ["instance", "job", "cpu", "mode", "env", "region"], suggestedOperations: ["rate", "irate", "avg", "sum"], job: "node-exporter", scrapeInterval: "15s", sampleValue: 127843.52 },
+  { name: "node_memory_bytes_total", type: "gauge", description: "Total amount of physical memory available on the node", unit: "bytes", labels: ["instance", "job", "env", "region", "cluster"], suggestedOperations: ["avg", "min", "max", "sum"], job: "node-exporter", scrapeInterval: "15s", sampleValue: 17179869184 },
+  { name: "node_disk_io_time_seconds_total", type: "counter", description: "Total seconds spent doing I/Os across all disk devices", unit: "seconds", labels: ["instance", "job", "device", "env"], suggestedOperations: ["rate", "increase", "sum"], job: "node-exporter", scrapeInterval: "15s", sampleValue: 5923.78 },
+  { name: "process_resident_memory_bytes", type: "gauge", description: "Resident memory size in bytes for the running process", unit: "bytes", labels: ["instance", "job", "namespace", "pod", "container", "region"], suggestedOperations: ["avg", "max", "sum", "topk"], job: "kube-state-metrics", scrapeInterval: "30s", sampleValue: 268435456 },
+  { name: "go_goroutines", type: "gauge", description: "Number of goroutines that currently exist in the Go runtime", unit: "goroutines", labels: ["instance", "job", "service"], suggestedOperations: ["avg", "max", "topk", "delta"], job: "api-server", scrapeInterval: "15s", sampleValue: 142 },
+  { name: "up", type: "gauge", description: "Whether the last scrape of the target was successful (1=up, 0=down)", unit: "", labels: ["instance", "job", "env", "region", "cluster"], suggestedOperations: ["min", "count", "sum", "absent"], job: "prometheus", scrapeInterval: "15s", sampleValue: 1 },
+  { name: "prometheus_http_requests_total", type: "counter", description: "Counter of HTTP requests to the Prometheus server by handler and status code", unit: "requests", labels: ["handler", "code", "instance", "job"], suggestedOperations: ["rate", "increase", "sum", "topk"], job: "prometheus", scrapeInterval: "15s", sampleValue: 12847 },
+  { name: "container_cpu_usage_seconds_total", type: "counter", description: "Cumulative CPU time consumed by the container in seconds", unit: "seconds", labels: ["namespace", "pod", "container", "instance", "job", "env", "cluster"], suggestedOperations: ["rate", "irate", "sum", "topk"], job: "cadvisor", scrapeInterval: "15s", sampleValue: 4521.33 },
+  { name: "container_memory_usage_bytes", type: "gauge", description: "Current memory usage of the container including cache", unit: "bytes", labels: ["namespace", "pod", "container", "instance", "job", "env"], suggestedOperations: ["avg", "max", "sum", "topk"], job: "cadvisor", scrapeInterval: "15s", sampleValue: 536870912 },
+  { name: "kube_pod_status_phase", type: "gauge", description: "The phase the pod is currently in (Pending, Running, Succeeded, Failed, Unknown)", unit: "", labels: ["namespace", "pod", "phase", "instance", "job", "cluster"], suggestedOperations: ["sum", "count", "group", "count_values"], job: "kube-state-metrics", scrapeInterval: "30s", sampleValue: 1 },
+  { name: "api_response_time_seconds", type: "histogram", description: "API endpoint response time distribution in seconds", unit: "seconds", labels: ["service", "method", "handler", "status_code", "instance", "job", "le"], suggestedOperations: ["histogram_quantile", "rate", "avg", "sum"], job: "api-server", scrapeInterval: "15s", sampleValue: 0.089 },
+  { name: "database_connections_active", type: "gauge", description: "Number of currently active database connections in the pool", unit: "connections", labels: ["service", "instance", "job", "env", "pool"], suggestedOperations: ["avg", "max", "min", "sum"], job: "db-exporter", scrapeInterval: "15s", sampleValue: 23 },
+  { name: "error_rate_total", type: "counter", description: "Total count of errors encountered across all services", unit: "errors", labels: ["service", "error_type", "instance", "job", "env", "region"], suggestedOperations: ["rate", "increase", "sum", "topk"], job: "api-server", scrapeInterval: "15s", sampleValue: 847 },
+  { name: "node_filesystem_avail_bytes", type: "gauge", description: "Available filesystem space in bytes", unit: "bytes", labels: ["instance", "job", "device", "mountpoint", "fstype", "env"], suggestedOperations: ["min", "avg", "sum", "predict_linear"], job: "node-exporter", scrapeInterval: "30s", sampleValue: 53687091200 },
+  { name: "node_network_receive_bytes_total", type: "counter", description: "Total network bytes received on each interface", unit: "bytes", labels: ["instance", "job", "device", "env", "region"], suggestedOperations: ["rate", "irate", "increase", "sum"], job: "node-exporter", scrapeInterval: "15s", sampleValue: 9876543210 },
+  { name: "node_network_transmit_bytes_total", type: "counter", description: "Total network bytes transmitted on each interface", unit: "bytes", labels: ["instance", "job", "device", "env", "region"], suggestedOperations: ["rate", "irate", "increase", "sum"], job: "node-exporter", scrapeInterval: "15s", sampleValue: 5432109876 },
+  { name: "process_cpu_seconds_total", type: "counter", description: "Total user and system CPU time spent in seconds", unit: "seconds", labels: ["instance", "job", "namespace", "pod"], suggestedOperations: ["rate", "irate", "avg"], job: "kube-state-metrics", scrapeInterval: "15s", sampleValue: 3847.21 },
+  { name: "node_load1", type: "gauge", description: "1-minute system load average", unit: "", labels: ["instance", "job", "env", "region"], suggestedOperations: ["avg", "max", "topk", "predict_linear"], job: "node-exporter", scrapeInterval: "15s", sampleValue: 2.34 },
+  { name: "kube_deployment_status_replicas_available", type: "gauge", description: "Number of available replicas per deployment", unit: "replicas", labels: ["namespace", "deployment", "instance", "job", "cluster"], suggestedOperations: ["min", "sum", "count", "bottomk"], job: "kube-state-metrics", scrapeInterval: "30s", sampleValue: 3 },
+  { name: "http_response_size_bytes", type: "histogram", description: "HTTP response size in bytes bucketed by predefined size boundaries", unit: "bytes", labels: ["job", "instance", "method", "handler", "le"], suggestedOperations: ["histogram_quantile", "rate", "avg", "sum"], job: "api-server", scrapeInterval: "15s", sampleValue: 4096 },
+];
+
 export const CHART_COLORS = [
   "#E20074", "#FF2D8A", "#B5005C", "#FF6DB3", "#9B0050",
   "#FF99CC", "#C7006A", "#FF4DA6", "#A30060", "#D4007F",

@@ -8,6 +8,7 @@ import { QueryBuilder } from "@/components/query-builder";
 import { MetricChart, DashboardCards } from "@/components/metric-chart";
 import { DatasourceRequestLog, generateLogEntry, type RequestLogEntry } from "@/components/datasource-request-log";
 import { DatasourceManager } from "@/components/datasource-manager";
+import { MetricsBrowser } from "@/components/metrics-browser";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { HelpPanel } from "@/components/help-panel";
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ContextualHelpTip } from "@/components/help-panel";
 import {
-  Activity, LayoutDashboard, Plus, Gauge, Layers, LayoutGrid, List, Database, Bug,
+  Activity, LayoutDashboard, Plus, Gauge, Layers, LayoutGrid, List, Database, Bug, PanelRightOpen, PanelRightClose,
 } from "lucide-react";
 import { Link } from "wouter";
 import type { MetricQuery } from "@shared/schema";
@@ -126,6 +127,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [requestLog, setRequestLog] = useState<RequestLogEntry[]>([]);
   const [dashboardView, setDashboardView] = useState<"grid" | "cards">("grid");
+  const [metricsPanelOpen, setMetricsPanelOpen] = useState(true);
 
   const saveMutation = useMutation({
     mutationFn: async (query: Partial<MetricQuery>) => {
@@ -210,6 +212,15 @@ export default function Home() {
                 <Gauge className="w-3 h-3" />
                 Prometheus
               </Badge>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => setMetricsPanelOpen(!metricsPanelOpen)}
+                data-testid="button-toggle-metrics-panel"
+              >
+                {metricsPanelOpen ? <PanelRightClose className="w-4 h-4" /> : <PanelRightOpen className="w-4 h-4" />}
+              </Button>
               <Link href="/admin/debug">
                 <Button variant="ghost" size="icon" className="h-8 w-8" data-testid="button-admin-debug">
                   <Bug className="w-4 h-4" />
@@ -220,139 +231,147 @@ export default function Home() {
             </div>
           </header>
 
-          <main className="flex-1 overflow-hidden">
-            {activeTab === "datasources" ? (
-              <ScrollArea className="h-full">
-                <div className="max-w-4xl mx-auto p-6">
-                  <DatasourceManager />
-                </div>
-              </ScrollArea>
-            ) : activeTab === "builder" ? (
-              <ScrollArea className="h-full">
-                <div className="max-w-4xl mx-auto p-6">
-                  <div className="mb-6">
-                    <h2 className="text-xl font-bold tracking-tight mb-1">
-                      {editingQuery ? "Edit Query" : "Create New Query"}
-                    </h2>
-                    <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                      Build PromQL expressions with an intuitive interface and visualize metrics in real-time.
-                      <ContextualHelpTip content="Use Builder mode to visually select metrics, labels, and operations. Switch to Code mode to write raw PromQL. Click Run Query to preview the chart, or Save Query to persist it. Click the ? icon in the header for full documentation." />
-                    </p>
+          <div className="flex-1 flex overflow-hidden">
+            <main className="flex-1 overflow-hidden min-w-0">
+              {activeTab === "datasources" ? (
+                <ScrollArea className="h-full">
+                  <div className="max-w-4xl mx-auto p-6">
+                    <DatasourceManager />
                   </div>
-                  <QueryBuilder
-                    onExecute={handleExecute}
-                    onSave={(q) => saveMutation.mutate(q)}
-                    editingQuery={editingQuery}
-                    isSaving={saveMutation.isPending}
-                  />
-
-                  {activeCharts.length > 0 && (
-                    <div className="mt-8">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Activity className="w-4 h-4 text-muted-foreground" />
-                        <h3 className="text-sm font-semibold text-muted-foreground">Preview</h3>
-                      </div>
-                      <MetricChart query={activeCharts[activeCharts.length - 1]} />
-                    </div>
-                  )}
-
-                  <div className="mt-8">
-                    <DatasourceRequestLog
-                      entries={requestLog}
-                      onClear={() => setRequestLog([])}
-                    />
-                  </div>
-                </div>
-              </ScrollArea>
-            ) : (
-              <ScrollArea className="h-full">
-                <div className="p-6">
-                  <div className="flex items-center justify-between gap-2 mb-6">
-                    <div>
-                      <h2 className="text-xl font-bold tracking-tight mb-1">Metrics Dashboard</h2>
+                </ScrollArea>
+              ) : activeTab === "builder" ? (
+                <ScrollArea className="h-full">
+                  <div className="max-w-4xl mx-auto p-6">
+                    <div className="mb-6">
+                      <h2 className="text-xl font-bold tracking-tight mb-1">
+                        {editingQuery ? "Edit Query" : "Create New Query"}
+                      </h2>
                       <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                        {activeCharts.length > 0
-                          ? `Viewing ${activeCharts.length} metric${activeCharts.length > 1 ? "s" : ""}`
-                          : "Run queries to see visualizations here"}
-                        <ContextualHelpTip content="Toggle between Grid and Cards view using the buttons on the right. Click any chart's expand icon for full-width detail. On pie/donut charts, click segments to drill down into sub-metrics." />
+                        Build PromQL expressions with an intuitive interface and visualize metrics in real-time.
+                        <ContextualHelpTip content="Use Builder mode to visually select metrics, labels, and operations. Switch to Code mode to write raw PromQL. Click Run Query to preview the chart, or Save Query to persist it. Click the ? icon in the header for full documentation." />
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {activeCharts.length > 0 && (
-                        <div className="flex items-center border rounded-md">
-                          <Button
-                            variant={dashboardView === "grid" ? "secondary" : "ghost"}
-                            size="icon"
-                            className="h-7 w-7 rounded-r-none"
-                            onClick={() => setDashboardView("grid")}
-                            data-testid="button-view-grid"
-                          >
-                            <List className="w-3.5 h-3.5" />
-                          </Button>
-                          <Button
-                            variant={dashboardView === "cards" ? "secondary" : "ghost"}
-                            size="icon"
-                            className="h-7 w-7 rounded-l-none"
-                            onClick={() => setDashboardView("cards")}
-                            data-testid="button-view-cards"
-                          >
-                            <LayoutGrid className="w-3.5 h-3.5" />
-                          </Button>
+                    <QueryBuilder
+                      onExecute={handleExecute}
+                      onSave={(q) => saveMutation.mutate(q)}
+                      editingQuery={editingQuery}
+                      isSaving={saveMutation.isPending}
+                    />
+
+                    {activeCharts.length > 0 && (
+                      <div className="mt-8">
+                        <div className="flex items-center gap-2 mb-4">
+                          <Activity className="w-4 h-4 text-muted-foreground" />
+                          <h3 className="text-sm font-semibold text-muted-foreground">Preview</h3>
                         </div>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5"
-                        onClick={() => setActiveTab("builder")}
-                        data-testid="button-new-query"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        Add Query
-                      </Button>
+                        <MetricChart query={activeCharts[activeCharts.length - 1]} />
+                      </div>
+                    )}
+
+                    <div className="mt-8">
+                      <DatasourceRequestLog
+                        entries={requestLog}
+                        onClear={() => setRequestLog([])}
+                      />
                     </div>
                   </div>
-
-                  {activeCharts.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-20 text-center">
-                      <div className="w-16 h-16 rounded-2xl bg-accent/50 flex items-center justify-center mb-4">
-                        <LayoutDashboard className="w-8 h-8 text-muted-foreground/40" />
+                </ScrollArea>
+              ) : (
+                <ScrollArea className="h-full">
+                  <div className="p-6">
+                    <div className="flex items-center justify-between gap-2 mb-6">
+                      <div>
+                        <h2 className="text-xl font-bold tracking-tight mb-1">Metrics Dashboard</h2>
+                        <p className="text-sm text-muted-foreground flex items-center gap-1.5">
+                          {activeCharts.length > 0
+                            ? `Viewing ${activeCharts.length} metric${activeCharts.length > 1 ? "s" : ""}`
+                            : "Run queries to see visualizations here"}
+                          <ContextualHelpTip content="Toggle between Grid and Cards view using the buttons on the right. Click any chart's expand icon for full-width detail. On pie/donut charts, click segments to drill down into sub-metrics." />
+                        </p>
                       </div>
-                      <h3 className="text-base font-semibold mb-1">No metrics yet</h3>
-                      <p className="text-sm text-muted-foreground max-w-xs">
-                        Create a query in the Builder tab and run it to see your metrics visualized here.
-                      </p>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        className="mt-4 gap-1.5"
-                        onClick={() => setActiveTab("builder")}
-                        data-testid="button-go-to-builder"
-                      >
-                        <Plus className="w-3.5 h-3.5" />
-                        Create Query
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        {activeCharts.length > 0 && (
+                          <div className="flex items-center border rounded-md">
+                            <Button
+                              variant={dashboardView === "grid" ? "secondary" : "ghost"}
+                              size="icon"
+                              className="h-7 w-7 rounded-r-none"
+                              onClick={() => setDashboardView("grid")}
+                              data-testid="button-view-grid"
+                            >
+                              <List className="w-3.5 h-3.5" />
+                            </Button>
+                            <Button
+                              variant={dashboardView === "cards" ? "secondary" : "ghost"}
+                              size="icon"
+                              className="h-7 w-7 rounded-l-none"
+                              onClick={() => setDashboardView("cards")}
+                              data-testid="button-view-cards"
+                            >
+                              <LayoutGrid className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={() => setActiveTab("builder")}
+                          data-testid="button-new-query"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          Add Query
+                        </Button>
+                      </div>
                     </div>
-                  ) : dashboardView === "cards" ? (
-                    <DashboardCards charts={activeCharts} />
-                  ) : (
-                    <div className={expandedChart !== null ? "" : "grid grid-cols-1 xl:grid-cols-2 gap-4"}>
-                      {activeCharts.map((chart, i) => (
-                        (expandedChart === null || expandedChart === i) && (
-                          <MetricChart
-                            key={`${chart.expression}-${i}`}
-                            query={chart}
-                            isExpanded={expandedChart === i}
-                            onToggleExpand={() => setExpandedChart(expandedChart === i ? null : i)}
-                          />
-                        )
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
+
+                    {activeCharts.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center py-20 text-center">
+                        <div className="w-16 h-16 rounded-2xl bg-accent/50 flex items-center justify-center mb-4">
+                          <LayoutDashboard className="w-8 h-8 text-muted-foreground/40" />
+                        </div>
+                        <h3 className="text-base font-semibold mb-1">No metrics yet</h3>
+                        <p className="text-sm text-muted-foreground max-w-xs">
+                          Create a query in the Builder tab and run it to see your metrics visualized here.
+                        </p>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          className="mt-4 gap-1.5"
+                          onClick={() => setActiveTab("builder")}
+                          data-testid="button-go-to-builder"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          Create Query
+                        </Button>
+                      </div>
+                    ) : dashboardView === "cards" ? (
+                      <DashboardCards charts={activeCharts} />
+                    ) : (
+                      <div className={expandedChart !== null ? "" : "grid grid-cols-1 xl:grid-cols-2 gap-4"}>
+                        {activeCharts.map((chart, i) => (
+                          (expandedChart === null || expandedChart === i) && (
+                            <MetricChart
+                              key={`${chart.expression}-${i}`}
+                              query={chart}
+                              isExpanded={expandedChart === i}
+                              onToggleExpand={() => setExpandedChart(expandedChart === i ? null : i)}
+                            />
+                          )
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </ScrollArea>
+              )}
+            </main>
+
+            {metricsPanelOpen && (
+              <aside className="w-72 border-l border-border bg-card/30 shrink-0 overflow-hidden" data-testid="metrics-panel">
+                <MetricsBrowser />
+              </aside>
             )}
-          </main>
+          </div>
         </div>
       </div>
     </SidebarProvider>

@@ -36,6 +36,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Plus, Edit3, Trash2, Database, Globe, Shield, Clock,
   CheckCircle2, Server, Zap, Lock, ShieldAlert, KeyRound, FileKey,
+  Plug, Loader2, CheckCircle, XCircle,
 } from "lucide-react";
 import type { Datasource } from "@shared/schema";
 import { ContextualHelpTip } from "@/components/help-panel";
@@ -153,6 +154,31 @@ export function DatasourceManager() {
     },
   });
 
+  const [testingId, setTestingId] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<{ id: string; success: boolean; message: string; latencyMs?: number } | null>(null);
+
+  const testMutation = useMutation({
+    mutationFn: async (id: string) => {
+      setTestingId(id);
+      setTestResult(null);
+      const res = await apiRequest("POST", `/api/datasources/${id}/test`);
+      return res.json();
+    },
+    onSuccess: (data: any, id: string) => {
+      setTestingId(null);
+      setTestResult({ id, success: data.success, message: data.message, latencyMs: data.latencyMs });
+      if (data.success) {
+        toast({ title: "Connection successful", description: `${data.message}${data.latencyMs ? ` (${data.latencyMs}ms)` : ""}${data.version ? ` — v${data.version}` : ""}` });
+      } else {
+        toast({ title: "Connection failed", description: data.message, variant: "destructive" });
+      }
+    },
+    onError: (error: Error) => {
+      setTestingId(null);
+      toast({ title: "Test failed", description: error.message, variant: "destructive" });
+    },
+  });
+
   const handleOpenCreate = () => {
     setEditingDs(null);
     form.reset(defaultFormValues);
@@ -240,6 +266,9 @@ export function DatasourceManager() {
               datasource={ds}
               onEdit={() => handleOpenEdit(ds)}
               onDelete={() => setDeleteId(ds.id)}
+              onTest={() => testMutation.mutate(ds.id)}
+              isTesting={testingId === ds.id}
+              testResult={testResult?.id === ds.id ? testResult : null}
             />
           ))}
         </div>
@@ -618,10 +647,16 @@ function DatasourceCard({
   datasource,
   onEdit,
   onDelete,
+  onTest,
+  isTesting,
+  testResult,
 }: {
   datasource: Datasource;
   onEdit: () => void;
   onDelete: () => void;
+  onTest: () => void;
+  isTesting: boolean;
+  testResult: { success: boolean; message: string; latencyMs?: number } | null;
 }) {
   const typeColors: Record<string, string> = {
     prometheus: "text-orange-500",
@@ -653,6 +688,16 @@ function DatasourceCard({
         </div>
 
         <div className="flex items-center gap-0.5 shrink-0">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={onTest}
+            disabled={isTesting}
+            data-testid={`button-test-ds-${datasource.id}`}
+          >
+            {isTesting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plug className="w-3.5 h-3.5" />}
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -734,6 +779,21 @@ function DatasourceCard({
             {datasource.tlsServerName && (
               <span className="font-mono text-muted-foreground">SNI: {datasource.tlsServerName}</span>
             )}
+          </div>
+        )}
+
+        {testResult && (
+          <div className={`flex items-center gap-2 text-xs p-2 rounded-md ${testResult.success ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-destructive/10 text-destructive"}`} data-testid={`test-result-${datasource.id}`}>
+            {testResult.success ? <CheckCircle className="w-3.5 h-3.5 shrink-0" /> : <XCircle className="w-3.5 h-3.5 shrink-0" />}
+            <span className="truncate">{testResult.message}</span>
+            {testResult.latencyMs && <span className="text-[10px] ml-auto shrink-0">{testResult.latencyMs}ms</span>}
+          </div>
+        )}
+
+        {isTesting && (
+          <div className="flex items-center gap-2 text-xs p-2 rounded-md bg-accent/50 text-muted-foreground" data-testid={`test-loading-${datasource.id}`}>
+            <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+            <span>Testing connection to {datasource.url}...</span>
           </div>
         )}
       </div>

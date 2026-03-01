@@ -1,0 +1,5 @@
+[2026-03-01T03:52:00.431Z] [INFO] [logger] Application logger initialized {"logFile":"app-2026-03-01T03-52-00.log","config":{"level":"INFO","consoleOutput":true,"fileOutput":true}}
+[2026-03-01T03:52:00.433Z] [INFO] [startup] MetricForge server starting...
+[2026-03-01T03:52:00.458Z] [INFO] [startup] Database seeded
+[2026-03-01T03:52:00.460Z] [INFO] [startup] Routes registered
+[2026-03-01T03:52:00.971Z] [INFO] [startup] Server listening on port 5000

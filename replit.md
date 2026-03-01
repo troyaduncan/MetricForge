@@ -24,7 +24,8 @@ An interactive Grafana/Prometheus-style datasource metrics builder with real-tim
 - Drill-down metrics: click pie/donut segments to explore sub-metrics with breadcrumb navigation
 - JSON query representation panel with copy-to-clipboard
 - Datasource request log simulating Prometheus API calls with latency, bytes, status codes
-- Prometheus datasource management: define, configure, and manage datasource connections with full CRUD
+- Prometheus datasource management: define, configure, and manage datasource connections with full CRUD + connectivity testing
+- Metrics Browser: right sidebar panel listing all metrics from the default datasource with type filtering, search, and click-to-detail view showing labels, operations, metadata, and example PromQL
 - Online help system: slide-out help panel with 9 categorized sections (Getting Started, Query Builder, Multi-Query, Dashboard, Datasources, Saved Queries, Request Log, PromQL Reference, Logging & Debug, Tips)
 - Contextual help tooltips: hover-to-reveal help icons on Label Filters, Operations, Query Options, Visualization, Dashboard, and Datasources
 - Comprehensive application logging: new log file per run, 4 log levels, request/response logging with latency/bytes/status
@@ -60,7 +61,7 @@ An interactive Grafana/Prometheus-style datasource metrics builder with real-tim
 - `OPERATION_DEFINITIONS` in schema.ts defines all available PromQL operations with categories, descriptions, and parameter definitions
 
 ## Project Structure
-- `shared/schema.ts` - Data models, LabelMatcher/QueryOperation/SubQuery/Datasource types, operation definitions, Prometheus constants
+- `shared/schema.ts` - Data models, LabelMatcher/QueryOperation/SubQuery/Datasource types, operation definitions, Prometheus constants, METRICS_CATALOG
 - `server/db.ts` - Database connection
 - `server/logger.ts` - Application logging module (file + in-memory, log levels, request tracking, stats)
 - `server/storage.ts` - CRUD operations via DatabaseStorage (queries + datasources) with logging
@@ -71,7 +72,8 @@ An interactive Grafana/Prometheus-style datasource metrics builder with real-tim
 - `client/src/components/help-panel.tsx` - Help panel (Sheet) and ContextualHelpTip component
 - `client/src/components/query-builder.tsx` - Full Grafana-style PromQL query builder UI with datasource selector
 - `client/src/components/metric-chart.tsx` - Chart visualization component (multi-series support)
-- `client/src/components/datasource-manager.tsx` - Datasource CRUD management UI
+- `client/src/components/datasource-manager.tsx` - Datasource CRUD management UI with connectivity testing
+- `client/src/components/metrics-browser.tsx` - Right sidebar metrics browser with search, type filtering, and detail view
 - `client/src/components/saved-queries-panel.tsx` - Saved queries sidebar
 - `client/src/lib/metrics-data.ts` - Time-series data generation, buildPromQLFromOperations expression builder
 - `logs/` - Runtime log files directory (gitignored, auto-created per app start)
@@ -87,6 +89,8 @@ An interactive Grafana/Prometheus-style datasource metrics builder with real-tim
 - POST /api/datasources - Create new datasource
 - PATCH /api/datasources/:id - Update datasource
 - DELETE /api/datasources/:id - Delete datasource
+- POST /api/datasources/:id/test - Test datasource connectivity
+- GET /api/metrics/catalog - Get metrics catalog from default datasource
 - GET /api/logs/config - Get logging configuration
 - PATCH /api/logs/config - Update logging configuration
 - GET /api/logs/app - Get application log entries (with level/category/search filters)
