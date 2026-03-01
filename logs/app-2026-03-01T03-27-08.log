@@ -1,0 +1,9 @@
+[2026-03-01T03:27:08.672Z] [INFO] [logger] Application logger initialized {"logFile":"app-2026-03-01T03-27-08.log","config":{"level":"INFO","consoleOutput":true,"fileOutput":true}}
+[2026-03-01T03:27:08.675Z] [INFO] [startup] MetricForge server starting...
+[2026-03-01T03:27:08.709Z] [INFO] [startup] Database seeded
+[2026-03-01T03:27:08.711Z] [INFO] [startup] Routes registered
+[2026-03-01T03:27:09.668Z] [INFO] [startup] Server listening on port 5000
+[2026-03-01T03:27:14.006Z] [REQUEST] GET /api/queries 304 OK 8ms 5937B
+[2026-03-01T03:27:14.006Z] [RESPONSE] GET /api/queries :: [{"id":"f7b8ac7f-4387-48b4-9ab0-614c64b357da","name":"HTTP Request Rate","description":"Rate of incoming HTTP requests per second across all instances","expression":"rate(http_requests_total{job=\"api-server\"}[5m])","metricName":"http_requests_total","metricType":"counter","labels":[{"op":"=","label":"job","value":"api-server"}],"aggregation":null,"range":null,"operations":[{"id":"op-1","type":"rate","params":{"range":"5m"}}],"legendFormat":null,"step":null,"queryType":"range","visualizationTyp
+[2026-03-01T03:27:16.646Z] [REQUEST] GET /api/datasources 200 OK 3ms 374B
+[2026-03-01T03:27:16.646Z] [RESPONSE] GET /api/datasources :: [{"id":"7f827e0a-443f-4bf2-ab03-fe08d1ea8744","name":"Production Prometheus","type":"prometheus","url":"http://prometheus.example.com:9090","access":"proxy","basicAuth":false,"basicAuthUser":"","isDefault":false,"customHeaders":{},"scrapeInterval":"15s","queryTimeout":"60s","httpMethod":"POST","createdAt":"2026-02-28T07:37:12.980Z","updatedAt":"2026-02-28T07:37:12.980Z"}]

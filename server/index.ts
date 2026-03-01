@@ -3,6 +3,9 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { initLogger, appLog, logRequest } from "./logger";
+
+initLogger();
 
 const app = express();
 const httpServer = createServer(app);
@@ -38,11 +41,22 @@ app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
+  let responseSize = 0;
 
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
     capturedJsonResponse = bodyJson;
+    const jsonStr = JSON.stringify(bodyJson);
+    responseSize = Buffer.byteLength(jsonStr, "utf-8");
     return originalResJson.apply(res, [bodyJson, ...args]);
+  };
+
+  const originalResSend = res.send;
+  res.send = function (body, ...args) {
+    if (responseSize === 0 && body) {
+      responseSize = typeof body === "string" ? Buffer.byteLength(body, "utf-8") : Buffer.isBuffer(body) ? body.length : 0;
+    }
+    return originalResSend.apply(res, [body, ...args]);
   };
 
   res.on("finish", () => {
@@ -52,8 +66,19 @@ app.use((req, res, next) => {
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
-
       log(logLine);
+
+      logRequest({
+        timestamp: new Date().toISOString(),
+        method: req.method,
+        path,
+        statusCode: res.statusCode,
+        durationMs: duration,
+        bytesReturned: responseSize,
+        requestBody: req.method !== "GET" ? req.body : undefined,
+        responseBody: capturedJsonResponse,
+        userAgent: req.headers["user-agent"],
+      });
     }
   });
 
@@ -61,14 +86,20 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  appLog("INFO", "startup", "MetricForge server starting...");
+
   const { seedDatabase } = await import("./seed");
   await seedDatabase();
+  appLog("INFO", "startup", "Database seeded");
+
   await registerRoutes(httpServer, app);
+  appLog("INFO", "startup", "Routes registered");
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
+    appLog("ERROR", "server", `Unhandled error: ${message}`, { status, stack: err.stack });
     console.error("Internal Server Error:", err);
 
     if (res.headersSent) {
@@ -78,9 +109,6 @@ app.use((req, res, next) => {
     return res.status(status).json({ message });
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
   } else {
@@ -88,10 +116,6 @@ app.use((req, res, next) => {
     await setupVite(httpServer, app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
   httpServer.listen(
     {
@@ -101,6 +125,7 @@ app.use((req, res, next) => {
     },
     () => {
       log(`serving on port ${port}`);
+      appLog("INFO", "startup", `Server listening on port ${port}`);
     },
   );
 })();

@@ -1,0 +1,7 @@
+[2026-03-01T03:34:13.979Z] [INFO] [logger] Application logger initialized {"logFile":"app-2026-03-01T03-34-13.log","config":{"level":"INFO","consoleOutput":true,"fileOutput":true}}
+[2026-03-01T03:34:13.982Z] [INFO] [startup] MetricForge server starting...
+[2026-03-01T03:34:14.009Z] [INFO] [startup] Database seeded
+[2026-03-01T03:34:14.012Z] [INFO] [startup] Routes registered
+[2026-03-01T03:34:14.582Z] [INFO] [startup] Server listening on port 5000
+[2026-03-01T03:34:17.968Z] [REQUEST] GET /api/queries 304 OK 5ms 5937B
+[2026-03-01T03:34:17.968Z] [RESPONSE] GET /api/queries :: [{"id":"f7b8ac7f-4387-48b4-9ab0-614c64b357da","name":"HTTP Request Rate","description":"Rate of incoming HTTP requests per second across all instances","expression":"rate(http_requests_total{job=\"api-server\"}[5m])","metricName":"http_requests_total","metricType":"counter","labels":[{"op":"=","label":"job","value":"api-server"}],"aggregation":null,"range":null,"operations":[{"id":"op-1","type":"rate","params":{"range":"5m"}}],"legendFormat":null,"step":null,"queryType":"range","visualizationTyp

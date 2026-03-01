@@ -31,9 +31,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Separator } from "@/components/ui/separator";
 import {
   Plus, Edit3, Trash2, Database, Globe, Shield, Clock,
-  CheckCircle2, Server, Zap,
+  CheckCircle2, Server, Zap, Lock, ShieldAlert, KeyRound, FileKey,
 } from "lucide-react";
 import type { Datasource } from "@shared/schema";
 import { ContextualHelpTip } from "@/components/help-panel";
@@ -49,7 +51,24 @@ const datasourceFormSchema = z.object({
   scrapeInterval: z.string().optional(),
   queryTimeout: z.string().optional(),
   httpMethod: z.string().optional(),
-});
+  tlsClientAuth: z.boolean(),
+  tlsSkipVerify: z.boolean(),
+  tlsCaCert: z.string().optional(),
+  tlsClientCert: z.string().optional(),
+  tlsClientKey: z.string().optional(),
+  tlsServerName: z.string().optional(),
+}).refine((data) => {
+  if (data.tlsClientAuth) {
+    return !!data.tlsClientCert && data.tlsClientCert.trim().length > 0;
+  }
+  return true;
+}, { message: "Client certificate is required when TLS client auth is enabled", path: ["tlsClientCert"] })
+.refine((data) => {
+  if (data.tlsClientAuth) {
+    return !!data.tlsClientKey && data.tlsClientKey.trim().length > 0;
+  }
+  return true;
+}, { message: "Client key is required when TLS client auth is enabled", path: ["tlsClientKey"] });
 
 type DatasourceFormValues = z.infer<typeof datasourceFormSchema>;
 
@@ -64,6 +83,12 @@ const defaultFormValues: DatasourceFormValues = {
   scrapeInterval: "15s",
   queryTimeout: "60s",
   httpMethod: "POST",
+  tlsClientAuth: false,
+  tlsSkipVerify: false,
+  tlsCaCert: "",
+  tlsClientCert: "",
+  tlsClientKey: "",
+  tlsServerName: "",
 };
 
 export function DatasourceManager() {
@@ -147,6 +172,12 @@ export function DatasourceManager() {
       scrapeInterval: ds.scrapeInterval || "15s",
       queryTimeout: ds.queryTimeout || "60s",
       httpMethod: ds.httpMethod || "POST",
+      tlsClientAuth: ds.tlsClientAuth ?? false,
+      tlsSkipVerify: ds.tlsSkipVerify ?? false,
+      tlsCaCert: ds.tlsCaCert || "",
+      tlsClientCert: ds.tlsClientCert || "",
+      tlsClientKey: ds.tlsClientKey || "",
+      tlsServerName: ds.tlsServerName || "",
     });
     setDialogOpen(true);
   };
@@ -215,7 +246,7 @@ export function DatasourceManager() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) { setEditingDs(null); form.reset(defaultFormValues); } }}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[540px] max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Database className="w-4 h-4" />
@@ -384,6 +415,145 @@ export function DatasourceManager() {
                 />
               )}
 
+              <Separator />
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Lock className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-xs font-semibold">TLS / SSL Settings</span>
+                </div>
+
+                <div className="flex items-center justify-between border rounded-md p-3">
+                  <div className="flex items-center gap-2">
+                    <KeyRound className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <Label className="text-xs font-medium">TLS Client Authentication</Label>
+                      <p className="text-[10px] text-muted-foreground">Enable client certificate authentication</p>
+                    </div>
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="tlsClientAuth"
+                    render={({ field }) => (
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          data-testid="switch-ds-tls-client-auth"
+                        />
+                      </FormControl>
+                    )}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between border rounded-md p-3">
+                  <div className="flex items-center gap-2">
+                    <ShieldAlert className="w-4 h-4 text-muted-foreground" />
+                    <div>
+                      <Label className="text-xs font-medium">Skip TLS Verify</Label>
+                      <p className="text-[10px] text-muted-foreground">Skip server certificate verification (insecure)</p>
+                    </div>
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="tlsSkipVerify"
+                    render={({ field }) => (
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                          data-testid="switch-ds-tls-skip-verify"
+                        />
+                      </FormControl>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="tlsServerName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs">Server Name (SNI)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., prometheus.example.com" className="h-9 text-sm font-mono" data-testid="input-ds-tls-server-name" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="tlsCaCert"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs flex items-center gap-1.5">
+                        <FileKey className="w-3.5 h-3.5" />
+                        CA Certificate
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"
+                          className="text-xs font-mono min-h-[80px] resize-y"
+                          data-testid="textarea-ds-tls-ca-cert"
+                          {...field}
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                {form.watch("tlsClientAuth") && (
+                  <>
+                    <FormField
+                      control={form.control}
+                      name="tlsClientCert"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs flex items-center gap-1.5">
+                            <FileKey className="w-3.5 h-3.5" />
+                            Client Certificate
+                          </FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"
+                              className="text-xs font-mono min-h-[80px] resize-y"
+                              data-testid="textarea-ds-tls-client-cert"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="tlsClientKey"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs flex items-center gap-1.5">
+                            <FileKey className="w-3.5 h-3.5" />
+                            Client Key
+                          </FormLabel>
+                          <FormControl>
+                            <Textarea
+                              placeholder="-----BEGIN RSA PRIVATE KEY-----&#10;...&#10;-----END RSA PRIVATE KEY-----"
+                              className="text-xs font-mono min-h-[80px] resize-y"
+                              data-testid="textarea-ds-tls-client-key"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </>
+                )}
+              </div>
+
+              <Separator />
+
               <div className="flex items-center justify-between border rounded-md p-3">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
@@ -530,6 +700,39 @@ function DatasourceCard({
             <span className="text-muted-foreground">Basic auth enabled</span>
             {datasource.basicAuthUser && (
               <span className="font-mono text-muted-foreground">({datasource.basicAuthUser})</span>
+            )}
+          </div>
+        )}
+
+        {(datasource.tlsClientAuth || datasource.tlsSkipVerify || datasource.tlsCaCert) && (
+          <div className="flex items-center gap-2 text-[10px] flex-wrap">
+            <Lock className="w-3 h-3 text-blue-500 shrink-0" />
+            {datasource.tlsClientAuth && (
+              <Badge variant="outline" className="text-[9px] h-4 px-1.5 gap-0.5">
+                <KeyRound className="w-2.5 h-2.5" />
+                Client Auth
+              </Badge>
+            )}
+            {datasource.tlsSkipVerify && (
+              <Badge variant="outline" className="text-[9px] h-4 px-1.5 gap-0.5 border-amber-400 text-amber-600 dark:text-amber-400">
+                <ShieldAlert className="w-2.5 h-2.5" />
+                Skip Verify
+              </Badge>
+            )}
+            {datasource.tlsCaCert && (
+              <Badge variant="outline" className="text-[9px] h-4 px-1.5 gap-0.5">
+                <FileKey className="w-2.5 h-2.5" />
+                CA Cert
+              </Badge>
+            )}
+            {datasource.tlsClientCert && (
+              <Badge variant="outline" className="text-[9px] h-4 px-1.5 gap-0.5">
+                <FileKey className="w-2.5 h-2.5" />
+                Client Cert
+              </Badge>
+            )}
+            {datasource.tlsServerName && (
+              <span className="font-mono text-muted-foreground">SNI: {datasource.tlsServerName}</span>
             )}
           </div>
         )}

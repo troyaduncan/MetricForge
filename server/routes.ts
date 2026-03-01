@@ -2,6 +2,11 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertMetricQuerySchema, insertDatasourceSchema } from "@shared/schema";
+import {
+  appLog, getConfig, updateConfig, getLogs, getRequestLogs,
+  getLogFiles, getLogFileContent, clearLogs, getCurrentLogFile,
+  type LogLevel,
+} from "./logger";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -131,6 +136,75 @@ export async function registerRoutes(
     } catch (error) {
       res.status(500).json({ error: "Failed to delete datasource" });
     }
+  });
+
+  app.get("/api/logs/config", (_req, res) => {
+    res.json(getConfig());
+  });
+
+  app.patch("/api/logs/config", (req, res) => {
+    try {
+      const allowed: (keyof import("./logger").LogConfig)[] = [
+        "level", "consoleOutput", "fileOutput", "maxFiles",
+        "logApiRequests", "logApiResponses", "logDbQueries",
+      ];
+      const updates: Record<string, any> = {};
+      for (const key of allowed) {
+        if (req.body[key] !== undefined) {
+          updates[key] = req.body[key];
+        }
+      }
+      updateConfig(updates);
+      res.json(getConfig());
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update log config" });
+    }
+  });
+
+  app.get("/api/logs/app", (req, res) => {
+    const { level, category, limit, offset, search } = req.query;
+    const result = getLogs({
+      level: level as LogLevel | undefined,
+      category: category as string | undefined,
+      limit: limit ? parseInt(limit as string) : undefined,
+      offset: offset ? parseInt(offset as string) : undefined,
+      search: search as string | undefined,
+    });
+    res.json(result);
+  });
+
+  app.get("/api/logs/requests", (req, res) => {
+    const { limit, offset, method, statusCode, path: filterPath } = req.query;
+    const result = getRequestLogs({
+      limit: limit ? parseInt(limit as string) : undefined,
+      offset: offset ? parseInt(offset as string) : undefined,
+      method: method as string | undefined,
+      statusCode: statusCode ? parseInt(statusCode as string) : undefined,
+      path: filterPath as string | undefined,
+    });
+    res.json(result);
+  });
+
+  app.get("/api/logs/files", (_req, res) => {
+    res.json(getLogFiles());
+  });
+
+  app.get("/api/logs/files/:filename", (req, res) => {
+    const content = getLogFileContent(req.params.filename);
+    if (content === null) {
+      return res.status(404).json({ error: "Log file not found" });
+    }
+    res.json({ filename: req.params.filename, content });
+  });
+
+  app.get("/api/logs/current", (_req, res) => {
+    res.json({ filename: getCurrentLogFile() });
+  });
+
+  app.post("/api/logs/clear", (_req, res) => {
+    clearLogs();
+    appLog("INFO", "api", "Logs cleared via admin API");
+    res.json({ message: "Logs cleared" });
   });
 
   return httpServer;

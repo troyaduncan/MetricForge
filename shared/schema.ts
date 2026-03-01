@@ -40,6 +40,12 @@ export const datasources = pgTable("datasources", {
   scrapeInterval: text("scrape_interval").default("15s"),
   queryTimeout: text("query_timeout").default("60s"),
   httpMethod: text("http_method").default("POST"),
+  tlsClientAuth: boolean("tls_client_auth").notNull().default(false),
+  tlsSkipVerify: boolean("tls_skip_verify").notNull().default(false),
+  tlsCaCert: text("tls_ca_cert"),
+  tlsClientCert: text("tls_client_cert"),
+  tlsClientKey: text("tls_client_key"),
+  tlsServerName: text("tls_server_name"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

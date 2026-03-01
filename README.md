@@ -145,6 +145,7 @@ The `.env` file is gitignored to prevent committing secrets. The `.env.example` 
 │       ├── index.css                  # Global styles, CSS variables, theming
 │       ├── pages/
 │       │   ├── home.tsx               # Main page: sidebar + builder/dashboard/datasources tabs
+│       │   ├── admin-debug.tsx        # Admin debug console: logs, requests, config
 │       │   └── not-found.tsx          # 404 fallback page
 │       ├── components/
 │       │   ├── app-sidebar.tsx        # Saved queries sidebar (Shadcn Sidebar)
@@ -162,12 +163,14 @@ The `.env` file is gitignored to prevent committing secrets. The `.env.example` 
 │           ├── queryClient.ts         # TanStack Query client configuration
 │           └── utils.ts               # Utility functions (cn, etc.)
 ├── server/
-│   ├── index.ts                       # Server entry point (loads dotenv)
-│   ├── routes.ts                      # REST API route handlers (queries + datasources)
+│   ├── index.ts                       # Server entry point (loads dotenv, logging middleware)
+│   ├── routes.ts                      # REST API route handlers (queries + datasources + logs)
+│   ├── logger.ts                      # Application logging module (file + in-memory)
 │   ├── storage.ts                     # Database storage interface & implementation
 │   ├── db.ts                          # Drizzle database connection
 │   ├── seed.ts                        # Seed data (9 sample PromQL queries)
 │   └── vite.ts                        # Vite dev server integration
+├── logs/                              # Runtime log files (gitignored, auto-created)
 ├── shared/
 │   └── schema.ts                      # Drizzle schema, types, operation definitions, constants
 ├── .env.example                       # Environment variable template
@@ -199,6 +202,12 @@ Stores Prometheus-compatible datasource configurations. Defined in `shared/schem
 | `scrapeInterval` | text        | Scrape interval setting (e.g., `15s`, `30s`, `1m`)              |
 | `queryTimeout`   | text        | Query timeout setting (e.g., `30s`, `60s`)                      |
 | `httpMethod`     | text        | HTTP method for queries: `GET` or `POST`                         |
+| `tlsClientAuth`  | boolean     | Whether TLS client certificate authentication is enabled         |
+| `tlsSkipVerify`  | boolean     | Skip server TLS certificate verification (insecure)              |
+| `tlsCaCert`      | text        | PEM-encoded CA certificate for server verification               |
+| `tlsClientCert`  | text        | PEM-encoded client certificate (for mutual TLS)                  |
+| `tlsClientKey`   | text        | PEM-encoded client private key (for mutual TLS)                  |
+| `tlsServerName`  | text        | Server Name Indication (SNI) override                            |
 | `createdAt`      | timestamp   | Auto-set creation timestamp                                      |
 | `updatedAt`      | timestamp   | Auto-set update timestamp                                        |
 
@@ -362,6 +371,12 @@ Creates a new datasource. If `isDefault` is set to `true`, the previous default 
 | `scrapeInterval` | No       | string  | Scrape interval (e.g., `15s`)                |
 | `queryTimeout`   | No       | string  | Query timeout (e.g., `60s`)                  |
 | `httpMethod`     | No       | string  | `GET` or `POST`                              |
+| `tlsClientAuth`  | No       | boolean | Enable TLS client certificate auth            |
+| `tlsSkipVerify`  | No       | boolean | Skip TLS certificate verification             |
+| `tlsCaCert`      | No       | string  | PEM-encoded CA certificate                    |
+| `tlsClientCert`  | No       | string  | PEM-encoded client certificate                |
+| `tlsClientKey`   | No       | string  | PEM-encoded client private key                |
+| `tlsServerName`  | No       | string  | SNI server name override                      |
 
 **Response**:
 - `201 Created` — Created `Datasource` object
@@ -383,6 +398,66 @@ Deletes a datasource by UUID.
 **Response**:
 - `204 No Content` — Successfully deleted
 - `404 Not Found` — `{ message: "Datasource not found" }`
+
+### Logging & Debug
+
+#### `GET /api/logs/config`
+
+Returns the current logging configuration.
+
+**Response**: `200 OK` — `LogConfig` object with level, output settings, and API logging flags
+
+#### `PATCH /api/logs/config`
+
+Updates logging configuration settings.
+
+**Request Body** (all fields optional):
+
+| Field            | Type    | Description                                      |
+|------------------|---------|--------------------------------------------------|
+| `level`          | string  | Minimum log level: `DEBUG`, `INFO`, `WARN`, `ERROR` |
+| `consoleOutput`  | boolean | Enable/disable console output                    |
+| `fileOutput`     | boolean | Enable/disable file output                       |
+| `maxFiles`       | number  | Maximum number of log files to retain             |
+| `logApiRequests` | boolean | Log API request details                           |
+| `logApiResponses`| boolean | Log API response bodies                           |
+| `logDbQueries`   | boolean | Log database operations                           |
+
+**Response**: `200 OK` — Updated `LogConfig` object
+
+#### `GET /api/logs/app`
+
+Returns application log entries with optional filtering.
+
+**Query Parameters**: `level`, `category`, `limit`, `offset`, `search`
+
+**Response**: `200 OK` — `{ entries: AppLogEntry[], total: number }`
+
+#### `GET /api/logs/requests`
+
+Returns API request log entries with stats.
+
+**Query Parameters**: `limit`, `offset`, `method`, `statusCode`, `path`
+
+**Response**: `200 OK` — `{ entries: RequestLogEntry[], total: number, stats: RequestStats }`
+
+Stats include: `totalRequests`, `avgLatencyMs`, `totalBytes`, `successCount`, `errorCount`, `p95LatencyMs`, `p99LatencyMs`, `methodBreakdown`, `statusBreakdown`
+
+#### `GET /api/logs/files`
+
+Returns a list of log files on disk with name, size, and creation date.
+
+#### `GET /api/logs/files/:filename`
+
+Returns the content of a specific log file.
+
+#### `GET /api/logs/current`
+
+Returns the filename of the current active log file.
+
+#### `POST /api/logs/clear`
+
+Clears all in-memory log entries.
 
 ---
 
@@ -483,12 +558,28 @@ Two-layer help system providing both global documentation and inline guidance:
   - Dashboard and Builder page headers
   - Datasource manager description
 
+### Admin Debug Console (`client/src/pages/admin-debug.tsx`)
+
+A dedicated admin page for viewing application logs, API request history, log files, and configuring logging settings. Accessible via the bug icon in the header or at `/admin/debug`.
+
+- **Application Logs tab**: Real-time view of all app log entries with level filtering (DEBUG/INFO/WARN/ERROR), text search, and auto-refresh. Expandable entries show metadata details
+- **Request Logs tab**: Every API request logged with method, path, status code, latency, and bytes returned. Includes aggregate statistics: total requests, average latency, p95/p99 latency percentiles, bytes transferred, and success rate. Expandable entries show request/response bodies
+- **Log Files tab**: Browse historical log files on disk with a split-pane viewer. Shows file name, size, and creation date. Click any file to view its full content
+- **Configuration tab**: Real-time logging settings including:
+  - Log level (DEBUG/INFO/WARN/ERROR)
+  - Console output toggle
+  - File output toggle
+  - Max log files retention
+  - API request/response logging toggles
+  - Database query logging toggle
+
 ### DatasourceManager (`client/src/components/datasource-manager.tsx`)
 
 Full CRUD management UI for Prometheus-compatible datasources:
 
-- **Card-based display**: Each datasource shown as a card with name, type badge, access mode badge, URL, and default indicator
-- **Create/Edit dialog**: Form fields for name, type (prometheus/thanos/cortex/mimir/victoriametrics), URL, access mode (proxy/direct), scrape interval, query timeout, HTTP method (GET/POST), basic auth toggle with username field, and default switch
+- **Card-based display**: Each datasource shown as a card with name, type badge, access mode badge, URL, default indicator, and TLS/auth status badges
+- **Create/Edit dialog**: Form fields for name, type (prometheus/thanos/cortex/mimir/victoriametrics), URL, access mode (proxy/direct), scrape interval, query timeout, HTTP method (GET/POST), basic auth toggle with username field, TLS/SSL settings (client auth, skip verify, server name, CA cert, client cert, client key), and default switch
+- **TLS/SSL configuration**: Full Grafana-style TLS settings including TLS Client Authentication toggle, Skip TLS Verify toggle, Server Name (SNI) field, CA Certificate textarea, and conditional Client Certificate/Key textareas (shown when client auth is enabled)
 - **Delete confirmation**: AlertDialog with explicit confirmation before deleting a datasource
 - **Default management**: Setting a datasource as default automatically clears the previous default (server-side)
 - **Empty state**: Informative message with action button when no datasources are configured
@@ -597,6 +688,24 @@ Generates realistic simulated Prometheus data entirely on the client:
   - Label Filters, Operations, Query Options, Visualization type selector
   - Dashboard description, Datasource manager description, Builder page header
   - Each tooltip provides a concise explanation of the nearby feature
+
+### Comprehensive Application Logging
+- **Server-side logging**: All application events, API requests, and database operations are logged with structured metadata
+- **New log file per run**: Each application start creates a fresh log file in `logs/` with a timestamped filename (e.g., `app-2026-02-28T08-57-44.log`)
+- **Four log levels**: DEBUG, INFO, WARN, ERROR with configurable minimum level
+- **Request/Response logging**: Every API call tracked with HTTP method, path, status code, latency (ms), bytes returned, and request/response bodies
+- **Aggregate statistics**: Total requests, average latency, p95/p99 percentiles, bytes transferred, success/error rates, and method/status breakdowns
+- **Admin Debug Console** (accessible via bug icon or `/admin/debug`):
+  - **Application Logs**: Filterable, searchable, auto-refreshing log viewer
+  - **Request Logs**: API request history with expandable detail panels and aggregate stats
+  - **Log Files**: Browse and view historical log files on disk
+  - **Configuration**: Adjust log level, output settings, and API logging toggles in real-time
+- **Log retention**: Configurable maximum number of log files (auto-cleanup of oldest files)
+- **Database operation logging**: Optional logging of all database CRUD operations
+
+### Database Schema Management
+- **`npm run db:push`**: Uses Drizzle Kit to sync the Drizzle schema with the PostgreSQL database, creating missing tables and columns automatically
+- Safe, non-destructive schema pushes that preserve existing data
 
 ### Dark/Light Theme
 - Toggle between dark and light modes

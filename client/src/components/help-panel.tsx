@@ -48,6 +48,8 @@ import {
   ChevronRight,
   Keyboard,
   Target,
+  Bug,
+  FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -561,6 +563,87 @@ const HELP_SECTIONS: HelpSection[] = [
               <div><strong>Gauge</strong> — A value that can go up and down (e.g., temperature, memory usage). Can be used directly.</div>
               <div><strong>Histogram</strong> — Tracks distribution of values in buckets (e.g., request latency). Use <code className="bg-muted px-1 rounded text-xs">histogram_quantile()</code> to extract percentiles.</div>
               <div><strong>Summary</strong> — Similar to histogram but calculates quantiles client-side. Less flexible but more precise for pre-calculated percentiles.</div>
+            </div>
+          </div>
+        ),
+      },
+    ],
+  },
+  {
+    id: "logging",
+    title: "Logging & Debug",
+    icon: <Bug className="w-4 h-4" />,
+    content: [
+      {
+        question: "Application Logging",
+        answer: (
+          <div className="space-y-2 text-sm">
+            <p>MetricForge includes comprehensive server-side logging that captures application events, API requests, and database operations.</p>
+            <div className="space-y-1.5">
+              <div className="flex items-start gap-2">
+                <FileText className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                <span>A new log file is automatically created each time the application starts</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <FileText className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                <span>Logs are stored in the <code className="bg-muted px-1 rounded text-xs">logs/</code> directory with timestamps in their filenames</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <FileText className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                <span>Four log levels available: <strong>DEBUG</strong>, <strong>INFO</strong>, <strong>WARN</strong>, <strong>ERROR</strong></span>
+              </div>
+            </div>
+          </div>
+        ),
+      },
+      {
+        question: "Admin Debug Console",
+        answer: (
+          <div className="space-y-2 text-sm">
+            <p>Access the Admin Debug Console by clicking the bug icon in the header bar or navigating to <code className="bg-muted px-1 rounded text-xs">/admin/debug</code>.</p>
+            <div className="space-y-1.5">
+              <div className="flex items-start gap-2">
+                <ArrowRight className="w-3 h-3 text-primary shrink-0 mt-1" />
+                <span><strong>Application Logs</strong> — View all app logs with level filtering, search, and auto-refresh</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <ArrowRight className="w-3 h-3 text-primary shrink-0 mt-1" />
+                <span><strong>Request Logs</strong> — See every API request with method, path, status code, latency, and bytes returned. Includes aggregate stats (avg latency, p95, p99, success rate)</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <ArrowRight className="w-3 h-3 text-primary shrink-0 mt-1" />
+                <span><strong>Log Files</strong> — Browse and view the contents of historical log files on disk</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <ArrowRight className="w-3 h-3 text-primary shrink-0 mt-1" />
+                <span><strong>Configuration</strong> — Adjust log level, toggle console/file output, enable API request/response logging, and set max log file retention</span>
+              </div>
+            </div>
+          </div>
+        ),
+      },
+      {
+        question: "Request/Response Logging",
+        answer: (
+          <div className="space-y-2 text-sm">
+            <p>Every API request is automatically logged with detailed metrics:</p>
+            <div className="space-y-1.5">
+              <div className="flex items-start gap-2">
+                <ArrowRight className="w-3 h-3 text-primary shrink-0 mt-1" />
+                <span><strong>Latency</strong> — Duration in milliseconds for each request</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <ArrowRight className="w-3 h-3 text-primary shrink-0 mt-1" />
+                <span><strong>Bytes Returned</strong> — Response payload size in bytes</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <ArrowRight className="w-3 h-3 text-primary shrink-0 mt-1" />
+                <span><strong>Status Codes</strong> — HTTP status of each response</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <ArrowRight className="w-3 h-3 text-primary shrink-0 mt-1" />
+                <span><strong>Request/Response Bodies</strong> — Full request and response payloads (when enabled in settings)</span>
+              </div>
             </div>
           </div>
         ),

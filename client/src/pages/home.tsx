@@ -16,8 +16,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ContextualHelpTip } from "@/components/help-panel";
 import {
-  Activity, LayoutDashboard, Plus, Gauge, Layers, LayoutGrid, List, Database,
+  Activity, LayoutDashboard, Plus, Gauge, Layers, LayoutGrid, List, Database, Bug,
 } from "lucide-react";
+import { Link } from "wouter";
 import type { MetricQuery } from "@shared/schema";
 
 const sidebarStyle = {
@@ -209,6 +210,11 @@ export default function Home() {
                 <Gauge className="w-3 h-3" />
                 Prometheus
               </Badge>
+              <Link href="/admin/debug">
+                <Button variant="ghost" size="icon" className="h-8 w-8" data-testid="button-admin-debug">
+                  <Bug className="w-4 h-4" />
+                </Button>
+              </Link>
               <HelpPanel />
               <ThemeToggle />
             </div>
